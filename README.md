@@ -19,8 +19,8 @@ class Request
 
 //管道数组
 $pipes = [];
-foreach(range(1, 3) as $row) {
-    $pipes[] = function($request, $next) use($row) {
+foreach (range(1, 3) as $row) {
+    $pipes[] = function ($request, $next) use ($row) {
         echo 'pipe-before' . $row . PHP_EOL;
         $request->number += $row;
         $request = $next($request);
@@ -30,7 +30,7 @@ foreach(range(1, 3) as $row) {
 }
 
 //核心逻辑
-$init = function($request) {
+$init = function ($request) {
     echo 'init start' . PHP_EOL;
     var_dump($request);
     echo 'init end' . PHP_EOL;
