@@ -3,6 +3,7 @@
 namespace Ledc\Pipeline;
 
 use Closure;
+use Psr\Container\ContainerInterface;
 use RuntimeException;
 use Throwable;
 
@@ -14,9 +15,9 @@ class Pipeline
 {
     /**
      * 容器实例
-     * @var Container|null
+     * @var ContainerInterface|null
      */
-    protected ?Container $container = null;
+    protected ?ContainerInterface $container = null;
 
     /**
      * 初始数据
@@ -47,9 +48,9 @@ class Pipeline
 
     /**
      * 构造函数
-     * @param Container|null $container
+     * @param ContainerInterface|null $container
      */
-    public function __construct(Container $container = null)
+    public function __construct(ContainerInterface $container = null)
     {
         $this->container = $container;
     }
@@ -167,7 +168,12 @@ class Pipeline
                         // If the pipe is a string we will parse the string and resolve the class out
                         // of the dependency injection container. We can then build a callable and
                         // execute the pipe function giving in the parameters that are required.
-                        $pipe = $this->getContainer()->make($name);
+                        $container = $this->getContainer();
+                        if (method_exists($container, 'make')) {
+                            $pipe = $container->make($name);
+                        } else {
+                            throw new RuntimeException('容器缺少make方法.');
+                        }
 
                         $parameters = array_merge([$passable, $stack], $parameters);
                     } else {
@@ -219,10 +225,10 @@ class Pipeline
     /**
      * 获取容器实例
      * - Get the container instance.
-     * @return Container
+     * @return ContainerInterface
      * @throws RuntimeException
      */
-    protected function getContainer(): Container
+    protected function getContainer(): ContainerInterface
     {
         if (!$this->container) {
             throw new RuntimeException('容器实例没有传递给Pipeline.');
@@ -234,10 +240,10 @@ class Pipeline
      * 设置容器实例
      * - Set the container instance.
      *
-     * @param Container $container
+     * @param ContainerInterface $container
      * @return $this
      */
-    public function setContainer(Container $container): static
+    public function setContainer(ContainerInterface $container): static
     {
         $this->container = $container;
         return $this;

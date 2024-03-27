@@ -2,7 +2,7 @@
   "name": "ledc/pipeline",
   "type": "library",
   "license": "MIT",
-  "description": "管道流水线模式 ledc/pipeline",
+  "description": "管道模式 ledc/pipeline",
   "authors": [
     {
       "name": "david",
