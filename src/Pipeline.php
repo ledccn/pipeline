@@ -14,12 +14,6 @@ use Throwable;
 class Pipeline
 {
     /**
-     * 容器实例
-     * @var ContainerInterface|null
-     */
-    protected ?ContainerInterface $container = null;
-
-    /**
      * 初始数据
      * - The object being passed through the pipeline.
      * @var mixed
@@ -44,15 +38,14 @@ class Pipeline
      * 异常处理器
      * @var callable|null
      */
-    protected $exceptionHandler = null;
+    protected mixed $exceptionHandler = null;
 
     /**
      * 构造函数
-     * @param ContainerInterface|null $container
+     * @param ContainerInterface|null $container 容器实例
      */
-    public function __construct(ContainerInterface $container = null)
+    public function __construct(protected ?ContainerInterface $container = null)
     {
-        $this->container = $container;
     }
 
     /**
@@ -125,9 +118,7 @@ class Pipeline
      */
     public function thenReturn(): mixed
     {
-        return $this->then(function ($passable) {
-            return $passable;
-        });
+        return $this->then(fn($passable) => $passable);
     }
 
     /**
@@ -154,44 +145,42 @@ class Pipeline
      */
     protected function carry(): Closure
     {
-        return function ($stack, $pipe) {
-            return function ($passable) use ($stack, $pipe) {
-                try {
-                    if (is_callable($pipe)) {
-                        // If the pipe is a callable, then we will call it directly, but otherwise we
-                        // will resolve the pipes out of the dependency container and call it with
-                        // the appropriate method and arguments, returning the results back out.
-                        return $pipe($passable, $stack);
-                    } elseif (!is_object($pipe)) {
-                        [$name, $parameters] = $this->parsePipeString($pipe);
+        return fn($stack, $pipe) => function ($passable) use ($stack, $pipe) {
+            try {
+                if (is_callable($pipe)) {
+                    // If the pipe is a callable, then we will call it directly, but otherwise we
+                    // will resolve the pipes out of the dependency container and call it with
+                    // the appropriate method and arguments, returning the results back out.
+                    return $pipe($passable, $stack);
+                } elseif (!is_object($pipe)) {
+                    [$name, $parameters] = $this->parsePipeString($pipe);
 
-                        // If the pipe is a string we will parse the string and resolve the class out
-                        // of the dependency injection container. We can then build a callable and
-                        // execute the pipe function giving in the parameters that are required.
-                        $container = $this->getContainer();
-                        if (method_exists($container, 'make')) {
-                            $pipe = $container->make($name);
-                        } else {
-                            throw new RuntimeException('容器缺少make方法.');
-                        }
-
-                        $parameters = array_merge([$passable, $stack], $parameters);
+                    // If the pipe is a string we will parse the string and resolve the class out
+                    // of the dependency injection container. We can then build a callable and
+                    // execute the pipe function giving in the parameters that are required.
+                    $container = $this->getContainer();
+                    if (method_exists($container, 'make')) {
+                        $pipe = $container->make($name);
                     } else {
-                        // If the pipe is already an object we'll just make a callable and pass it to
-                        // the pipe as-is. There is no need to do any extra parsing and formatting
-                        // since the object we're given was already a fully instantiated object.
-                        $parameters = [$passable, $stack];
+                        throw new RuntimeException('容器缺少make方法.');
                     }
 
-                    $carry = method_exists($pipe, $this->method)
-                        ? $pipe->{$this->method}(...$parameters)
-                        : $pipe(...$parameters);
-
-                    return $this->handleCarry($carry);
-                } catch (Throwable $e) {
-                    return $this->handleException($passable, $e);
+                    $parameters = array_merge([$passable, $stack], $parameters);
+                } else {
+                    // If the pipe is already an object we'll just make a callable and pass it to
+                    // the pipe as-is. There is no need to do any extra parsing and formatting
+                    // since the object we're given was already a fully instantiated object.
+                    $parameters = [$passable, $stack];
                 }
-            };
+
+                $carry = method_exists($pipe, $this->method)
+                    ? $pipe->{$this->method}(...$parameters)
+                    : $pipe(...$parameters);
+
+                return $this->handleCarry($carry);
+            } catch (Throwable $e) {
+                return $this->handleException($passable, $e);
+            }
         };
     }
 
